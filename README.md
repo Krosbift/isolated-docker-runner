@@ -21,6 +21,26 @@
 | Docker Compose incluido | ✅ | ✅ |
 | Fácil de eliminar | ✅ | ✅ |
 
+## � Requisitos Previos
+
+### Ubuntu / Linux
+
+```bash
+# Instalar make (necesario para ejecutar los comandos)
+sudo apt update
+sudo apt install -y make
+```
+
+### macOS
+
+```bash
+# Instalar Homebrew (si no lo tienes)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# make ya viene incluido con Xcode Command Line Tools
+xcode-select --install
+```
+
 ## 🚀 Inicio Rápido
 
 ### 1. Clonar el repositorio
@@ -30,19 +50,26 @@ git clone https://github.com/tu-usuario/isolated-docker-runner.git
 cd isolated-docker-runner
 ```
 
-### 2. Instalar Docker aislado
+### 2. Instalar requisitos (si no los tienes)
+
+```bash
+# Solo Ubuntu - instalar make
+sudo apt install -y make
+```
+
+### 3. Instalar Docker aislado
 
 ```bash
 make install
 ```
 
-### 3. Iniciar Docker
+### 4. Iniciar Docker
 
 ```bash
 make up
 ```
 
-### 4. ¡Listo! Usa Docker normalmente
+### 5. ¡Listo! Usa Docker normalmente
 
 ```bash
 # Cargar variables de entorno (necesario en cada terminal nueva)
