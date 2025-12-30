@@ -12,7 +12,7 @@
 #
 # Lo que se elimina:
 #   - Servicio Docker rootless del usuario
-#   - Directorio $ISO_DOCKER_HOME con todas las imágenes y volúmenes
+#   - Todas las imágenes, contenedores y volúmenes
 #
 # Uso:
 #   make purge  (te pedirá confirmación)
@@ -26,6 +26,9 @@ set -euo pipefail
 source "$(dirname "$0")/../common.sh"
 load_env
 
+# Directorio de datos de Docker rootless
+DOCKER_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/docker"
+
 print_header "Purga de Docker Rootless"
 
 print_warning "¡ATENCIÓN! Esta acción eliminará:"
@@ -34,7 +37,7 @@ echo "  - Servicio Docker rootless"
 echo "  - Todas las imágenes Docker descargadas"
 echo "  - Todos los contenedores"
 echo "  - Todos los volúmenes y datos"
-echo "  - Directorio: $ISO_DOCKER_HOME"
+echo "  - Directorio de datos: $DOCKER_DATA_HOME"
 echo ""
 
 # ============================================================================
@@ -55,6 +58,7 @@ fi
 
 print_info "Deteniendo servicio Docker..."
 systemctl --user stop docker 2>/dev/null || true
+systemctl --user disable docker 2>/dev/null || true
 
 # ============================================================================
 # Desinstalar Docker rootless
@@ -65,16 +69,20 @@ if command -v dockerd-rootless-setuptool.sh &>/dev/null; then
   dockerd-rootless-setuptool.sh uninstall 2>/dev/null || true
 fi
 
+# Eliminar servicio de usuario
+rm -f "$HOME/.config/systemd/user/docker.service" 2>/dev/null || true
+systemctl --user daemon-reload 2>/dev/null || true
+
 # ============================================================================
 # Eliminar directorio de datos
 # ============================================================================
 
-if [[ -d "$ISO_DOCKER_HOME" ]]; then
-  print_info "Eliminando directorio de datos: $ISO_DOCKER_HOME"
-  rm -rf "$ISO_DOCKER_HOME"
+if [[ -d "$DOCKER_DATA_HOME" ]]; then
+  print_info "Eliminando directorio de datos: $DOCKER_DATA_HOME"
+  rm -rf "$DOCKER_DATA_HOME"
   print_success "Directorio eliminado"
 else
-  print_info "El directorio $ISO_DOCKER_HOME no existe"
+  print_info "El directorio $DOCKER_DATA_HOME no existe"
 fi
 
 # ============================================================================
@@ -86,4 +94,7 @@ echo ""
 print_success "Docker rootless ha sido eliminado completamente"
 echo ""
 print_info "Para volver a instalar Docker, ejecuta: make install"
+print_info "Para desinstalar completamente Docker del sistema:"
+echo ""
+echo "  sudo apt remove docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker-ce-rootless-extras"
 echo ""

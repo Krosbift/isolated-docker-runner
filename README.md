@@ -50,26 +50,32 @@ git clone https://github.com/tu-usuario/isolated-docker-runner.git
 cd isolated-docker-runner
 ```
 
-### 2. Instalar requisitos (si no los tienes)
+### 2. Dar permisos de ejecución a los scripts
+
+```bash
+chmod +x scripts/**/*.sh
+```
+
+### 3. Instalar requisitos (si no los tienes)
 
 ```bash
 # Solo Ubuntu - instalar make
 sudo apt install -y make
 ```
 
-### 3. Instalar Docker aislado
+### 4. Instalar Docker aislado
 
 ```bash
 make install
 ```
 
-### 4. Iniciar Docker
+### 5. Iniciar Docker
 
 ```bash
 make up
 ```
 
-### 5. ¡Listo! Usa Docker normalmente
+### 6. ¡Listo! Usa Docker normalmente
 
 ```bash
 # Cargar variables de entorno (necesario en cada terminal nueva)
@@ -106,17 +112,16 @@ En Ubuntu se utiliza **Docker Rootless**, que permite ejecutar Docker sin privil
 - Paquetes: se instalan automáticamente
 
 #### ¿Cómo funciona?
-1. Instala Docker y dependencias del sistema
+1. Instala Docker desde el repositorio oficial de Docker
 2. Desactiva Docker del sistema para evitar conflictos
-3. Configura Docker Rootless en `~/.isodocker`
-4. Habilita el servicio para tu usuario
+3. Configura Docker Rootless para tu usuario
+4. Habilita el servicio Docker del usuario
 
 #### Dónde se guardan los datos
 ```
-~/.isodocker/
-├── data/      # Imágenes, contenedores, volúmenes
-├── run/       # Socket de Docker y archivos runtime
-└── state/     # Estado de rootlesskit
+~/.local/share/docker/     # Imágenes, contenedores, volúmenes
+/run/user/<UID>/docker.sock  # Socket de Docker (runtime)
+~/.config/systemd/user/docker.service  # Servicio de usuario
 ```
 
 #### Usar Docker en cada terminal
@@ -131,7 +136,7 @@ O añade esto a tu `~/.bashrc` o `~/.zshrc`:
 
 ```bash
 # Isolated Docker Runner
-export DOCKER_HOST="unix://$HOME/.isodocker/run/docker.sock"
+export DOCKER_HOST="unix:///run/user/$(id -u)/docker.sock"
 ```
 
 ---
@@ -269,6 +274,20 @@ docker run --rm -it -v "$PWD:/app" -w /app node:20 bash
 ```
 
 ## 🔧 Solución de Problemas
+
+### "Permission denied" al ejecutar make install
+
+Los scripts necesitan permisos de ejecución:
+```bash
+chmod +x scripts/**/*.sh
+```
+
+### "Command 'make' not found"
+
+Instala make primero:
+```bash
+sudo apt install -y make
+```
 
 ### "Cannot connect to the Docker daemon"
 

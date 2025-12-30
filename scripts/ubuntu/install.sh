@@ -12,7 +12,7 @@
 #   - Conexión a internet
 #
 # Lo que hace este script:
-#   1. Instala paquetes necesarios (docker.io, uidmap, slirp4netns, etc.)
+#   1. Instala Docker desde el repositorio oficial de Docker
 #   2. Desactiva Docker del sistema para evitar conflictos
 #   3. Configura Docker rootless en un directorio aislado
 #   4. Habilita el servicio Docker para el usuario actual
@@ -49,18 +49,45 @@ KERNEL_VERSION=$(uname -r | cut -d. -f1-2)
 print_info "Versión del kernel: $KERNEL_VERSION"
 
 # ============================================================================
-# Instalación de paquetes necesarios
+# Eliminar versiones antiguas de Docker (si existen)
 # ============================================================================
 
-print_info "Instalando paquetes necesarios..."
+print_info "Eliminando versiones anteriores de Docker (si existen)..."
+sudo apt remove -y docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc 2>/dev/null || true
+
+# ============================================================================
+# Instalación de dependencias y repositorio oficial de Docker
+# ============================================================================
+
+print_info "Instalando dependencias..."
 sudo apt update
 sudo apt install -y \
-  docker.io \
-  docker-compose-v2 \
+  ca-certificates \
+  curl \
+  gnupg \
   uidmap \
   slirp4netns \
   fuse-overlayfs \
   dbus-user-session
+
+# Añadir clave GPG oficial de Docker
+print_info "Configurando repositorio oficial de Docker..."
+sudo install -m 0755 -d /etc/apt/keyrings
+if [[ ! -f /etc/apt/keyrings/docker.gpg ]]; then
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  sudo chmod a+r /etc/apt/keyrings/docker.gpg
+fi
+
+# Añadir repositorio de Docker
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Instalar Docker desde el repositorio oficial
+print_info "Instalando Docker desde repositorio oficial..."
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
 print_success "Paquetes instalados correctamente"
 
@@ -72,7 +99,8 @@ print_success "Paquetes instalados correctamente"
 # ============================================================================
 
 print_info "Desactivando Docker del sistema (evita conflictos)..."
-sudo systemctl disable --now docker 2>/dev/null || true
+sudo systemctl disable --now docker.service 2>/dev/null || true
+sudo systemctl disable --now docker.socket 2>/dev/null || true
 sudo systemctl disable --now containerd 2>/dev/null || true
 print_success "Docker del sistema desactivado"
 
@@ -87,23 +115,31 @@ mkdir -p "$ISO_DOCKER_HOME"/{data,run,state}
 # Configurar variables de entorno para Docker rootless
 # ============================================================================
 
-export DOCKERD_ROOTLESS_ROOTLESSKIT_STATE_DIR="$ISO_DOCKER_HOME/state"
-export XDG_DATA_HOME="$ISO_DOCKER_HOME/data"
-export XDG_RUNTIME_DIR="$ISO_DOCKER_HOME/run"
+# Usamos la ruta estándar de Docker rootless
+export XDG_RUNTIME_DIR="/run/user/$(id -u)"
 export DOCKER_HOST="unix://$XDG_RUNTIME_DIR/docker.sock"
 
 print_info "Configuración de Docker rootless:"
-echo "  DOCKERD_ROOTLESS_ROOTLESSKIT_STATE_DIR=$DOCKERD_ROOTLESS_ROOTLESSKIT_STATE_DIR"
-echo "  XDG_DATA_HOME=$XDG_DATA_HOME"
 echo "  XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR"
 echo "  DOCKER_HOST=$DOCKER_HOST"
 
 # ============================================================================
-# Instalar y habilitar Docker rootless
+# Instalar Docker rootless
 # ============================================================================
 
 print_info "Instalando Docker rootless..."
-dockerd-rootless-setuptool.sh install
+
+# Verificar que el script de instalación existe
+ROOTLESS_SETUP="/usr/bin/dockerd-rootless-setuptool.sh"
+if [[ ! -x "$ROOTLESS_SETUP" ]]; then
+  print_error "No se encontró dockerd-rootless-setuptool.sh"
+  print_info "Intentando instalación alternativa..."
+  
+  # Descargar e instalar rootless directamente
+  curl -fsSL https://get.docker.com/rootless | sh
+else
+  "$ROOTLESS_SETUP" install
+fi
 
 print_info "Habilitando servicio Docker para el usuario..."
 systemctl --user enable --now docker
@@ -113,11 +149,18 @@ systemctl --user enable --now docker
 # ============================================================================
 
 print_info "Verificando instalación..."
+
+# Esperar a que Docker esté listo
+sleep 3
+
 if docker version &>/dev/null; then
   print_success "Docker instalado correctamente"
   docker version
 else
   print_error "Error al verificar Docker"
+  print_info "Puede que necesites reiniciar la sesión. Intenta:"
+  echo "  1. Cierra sesión y vuelve a iniciar"
+  echo "  2. Ejecuta: make up"
   exit 1
 fi
 
@@ -125,8 +168,7 @@ if docker compose version &>/dev/null; then
   print_success "Docker Compose instalado correctamente"
   docker compose version
 else
-  print_warning "Docker Compose v2 no disponible, verificando docker-compose..."
-  docker-compose version || print_warning "Docker Compose no disponible"
+  print_warning "Docker Compose no disponible como plugin"
 fi
 
 # ============================================================================

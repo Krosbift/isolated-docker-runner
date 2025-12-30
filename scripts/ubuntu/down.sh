@@ -27,7 +27,9 @@ print_header "Deteniendo Docker Rootless"
 # ============================================================================
 
 # Cargar variables de entorno
-export XDG_RUNTIME_DIR="$ISO_DOCKER_HOME/run"
+if [[ -z "${XDG_RUNTIME_DIR:-}" ]]; then
+  export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+fi
 export DOCKER_HOST="unix://$XDG_RUNTIME_DIR/docker.sock"
 
 # Verificar si hay contenedores en ejecución
@@ -45,6 +47,6 @@ systemctl --user stop docker 2>/dev/null || true
 
 print_success "Docker detenido"
 echo ""
-print_info "Los datos (imágenes, volúmenes) se conservan en: $ISO_DOCKER_HOME"
+print_info "Los datos (imágenes, volúmenes) se conservan."
 print_info "Para iniciar Docker nuevamente: make up"
 echo ""
