@@ -26,7 +26,7 @@
 set -euo pipefail
 
 # shellcheck disable=SC1091
-source "$(dirname "$0")/../common.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common.sh"
 load_env
 
 print_header "Purga de Docker (Colima)"

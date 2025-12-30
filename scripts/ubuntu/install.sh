@@ -27,7 +27,7 @@ set -euo pipefail
 
 # Cargar funciones comunes y variables de entorno
 # shellcheck disable=SC1091
-source "$(dirname "$0")/../common.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common.sh"
 load_env
 
 print_header "Instalación de Docker Rootless en Ubuntu"
